@@ -1,0 +1,22 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# ── Proxy Spotify CDN preview MP3s through Netlify to avoid CORS ──────────────
+# /preview/mp3-preview/... → https://p.scdn.co/mp3-preview/...
+# status = 200 means server-side rewrite (transparent proxy, not a redirect)
+[[redirects]]
+  from   = "/preview/*"
+  to     = "https://p.scdn.co/:splat"
+  status = 200
+  force  = true
+
+# ── SPA fallback — all routes serve index.html ────────────────────────────────
+# Must come after the /preview rule so it doesn't swallow those requests
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
