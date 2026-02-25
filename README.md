@@ -29,7 +29,7 @@ Built with Vite + React + TypeScript + Three.js + Web Audio API.
 | Audio | Web Audio API (`AudioContext`, `AnalyserNode`, `getDisplayMedia`, `getUserMedia`) |
 | Auth | Spotify PKCE OAuth2 |
 | Playback | Spotify Web Playback SDK, Spotify Connect API |
-| Deployment | Netlify (static + server-side proxy) |
+| Deployment | Static host with server-side proxy support |
 
 ---
 
@@ -89,46 +89,20 @@ Open [http://127.0.0.1:5174](http://127.0.0.1:5174).
 
 ---
 
-## Deploying to Netlify
+## Deployment
 
-### 1. Push to GitHub
+The app builds to a static bundle (`npm run build` → `dist/`). It can be hosted on any static platform that supports server-side proxy rewrites.
 
-Create a new empty repo on GitHub, then:
-
-```bash
-git remote add origin https://github.com/amertx/spotify-visualizer.git
-git push -u origin main
-```
-
-### 2. Connect to Netlify
-
-- [app.netlify.com](https://app.netlify.com) → **Add new site** → **Import from Git**
-- Select your repo — build settings are read automatically from `netlify.toml`
-
-### 3. Set environment variables
-
-In your Netlify site dashboard → **Site configuration → Environment variables**:
+**Required environment variables** (set in your host's dashboard):
 
 | Key | Value |
 |-----|-------|
 | `VITE_SPOTIFY_CLIENT_ID` | your Spotify Client ID |
-| `VITE_REDIRECT_URI` | `https://your-site.netlify.app/callback` |
+| `VITE_REDIRECT_URI` | `https://your-domain.com/callback` |
 
-### 4. Add the redirect URI to Spotify
+**Spotify dashboard** — add your production URL as a Redirect URI under **Edit settings → Redirect URIs**. It must match `VITE_REDIRECT_URI` exactly.
 
-In your Spotify app's dashboard → **Edit settings → Redirect URIs**, add:
-
-```
-https://your-site.netlify.app/callback
-```
-
-This must match `VITE_REDIRECT_URI` exactly.
-
-### 5. Redeploy
-
-Trigger a new deploy after setting env vars — they get baked into the bundle at build time.
-
-> The `netlify.toml` includes a server-side proxy rule that routes `/preview/*` → `https://p.scdn.co/*`, solving the CORS restriction on Spotify's audio CDN without any serverless functions.
+**CORS proxy** — Spotify's audio CDN (`p.scdn.co`) blocks direct browser fetches. The included `netlify.toml` configures a server-side rewrite rule that proxies `/preview/*` → `https://p.scdn.co/*`, solving this without any serverless functions. Equivalent rules can be set up on other platforms.
 
 ---
 
@@ -226,7 +200,7 @@ The project was built iteratively, each layer adding expressiveness to the previ
 
 **7. Audio profile classifier** — `AudioProfileClassifier` continuously scores five archetypes from spectral features and blends visual parameters (bloom strength, displacement scale, particle velocity, camera shake) across the weighted mix.
 
-**8. Mobile + deployment** — Preview URL audio path for mobile (fetch → `decodeAudioData` → `AnalyserNode`), Spotify Connect API for simultaneous native app playback, `getUserMedia` mic fallback, touch targets, fullscreen API. Netlify config with server-side proxy for Spotify CDN CORS.
+**8. Mobile + deployment** — Preview URL audio path for mobile (fetch → `decodeAudioData` → `AnalyserNode`), Spotify Connect API for simultaneous native app playback, `getUserMedia` mic fallback, touch targets, fullscreen API. Static deployment config with server-side proxy for Spotify CDN CORS.
 
 ---
 
