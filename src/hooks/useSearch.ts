@@ -6,10 +6,12 @@ export function useSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SpotifyTrack[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback((q: string) => {
     setQuery(q);
+    setError(null);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -26,6 +28,7 @@ export function useSearch() {
       } catch (err) {
         console.error('Search error:', err);
         setResults([]);
+        setError(err instanceof Error ? err.message : 'Search failed');
       } finally {
         setLoading(false);
       }
@@ -37,7 +40,8 @@ export function useSearch() {
     setQuery('');
     setResults([]);
     setLoading(false);
+    setError(null);
   }, []);
 
-  return { query, results, loading, search, clear };
+  return { query, results, loading, error, search, clear };
 }

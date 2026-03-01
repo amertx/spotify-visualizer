@@ -91,8 +91,10 @@ export class LiveAnalyzer {
    */
   async startLiveCapture(): Promise<AudioSourceMode> {
     this.disposeSource();
-    await this.ctx.resume();
 
+    // Safari requires getDisplayMedia() to be called synchronously within a
+    // user gesture handler — any await before it breaks the gesture chain.
+    // Start the promise first, then resume the AudioContext in parallel.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const constraints: any = {
       audio: {
@@ -107,7 +109,9 @@ export class LiveAnalyzer {
       selfBrowserSurface: 'include',
     };
 
-    const stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+    const streamPromise = navigator.mediaDevices.getDisplayMedia(constraints);
+    await this.ctx.resume();
+    const stream = await streamPromise;
     stream.getVideoTracks().forEach(t => t.stop());
 
     if (stream.getAudioTracks().length === 0) {

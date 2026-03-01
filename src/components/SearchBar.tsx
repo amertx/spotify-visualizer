@@ -8,11 +8,11 @@ interface Props {
 }
 
 export function SearchBar({ onSelect, disabled }: Props) {
-  const { query, results, loading, search, clear } = useSearch();
+  const { query, results, loading, error, search, clear } = useSearch();
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const showDropdown = open && (loading || results.length > 0);
+  const showDropdown = open && (loading || results.length > 0 || !!error);
 
   function handleSelect(track: SpotifyTrack) {
     onSelect(track);
@@ -58,6 +58,9 @@ export function SearchBar({ onSelect, disabled }: Props) {
             <div className="search-loading">
               <div className="spinner" />
             </div>
+          )}
+          {error && !loading && (
+            <div className="search-error">{error}</div>
           )}
           {results.map((track) => {
             const thumb = track.album.images[track.album.images.length - 1]?.url;

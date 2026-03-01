@@ -14,6 +14,10 @@ async function apiFetch<T>(endpoint: string): Promise<T> {
     throw new Error(`Rate limited. Retry after ${retry ?? '?'}s`);
   }
 
+  if (response.status === 403) {
+    throw new Error('Access denied — this Spotify app is in development mode. Ask the developer to add your account.');
+  }
+
   if (!response.ok) throw new Error(`Spotify API ${response.status}: ${endpoint}`);
 
   return response.json();

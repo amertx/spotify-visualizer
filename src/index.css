@@ -407,6 +407,13 @@ body {
   padding: 16px;
 }
 
+.search-error {
+  padding: 12px 14px;
+  font-size: 12px;
+  color: #ff6b6b;
+  line-height: 1.4;
+}
+
 .result-item {
   display: flex;
   align-items: center;
