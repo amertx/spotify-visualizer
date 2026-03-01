@@ -19,10 +19,30 @@ import type { SpotifyTrack }      from './spotify/types';
 
 type AppMode = 'spotify' | 'youtube';
 
+// Defined outside App so Fast Refresh and React reconciliation stay stable
+function ModeToggle({ current, onSwitch }: { current: AppMode; onSwitch: (m: AppMode) => void }) {
+  return (
+    <div className="mode-tabs">
+      <button
+        className={`mode-tab ${current === 'spotify' ? 'mode-tab--active' : ''}`}
+        onClick={() => onSwitch('spotify')}
+      >
+        Spotify
+      </button>
+      <button
+        className={`mode-tab ${current === 'youtube' ? 'mode-tab--active' : ''}`}
+        onClick={() => onSwitch('youtube')}
+      >
+        YouTube
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const isMobile = useIsMobile();
 
-  // ── App mode (Spotify vs YouTube) ─────────────────────────────────────────
+  // ── App mode ──────────────────────────────────────────────────────────────
   const [appMode, setAppMode] = useState<AppMode>(() =>
     (sessionStorage.getItem('app-mode') as AppMode | null) ?? 'spotify'
   );
@@ -32,7 +52,7 @@ export default function App() {
     sessionStorage.setItem('app-mode', mode);
   }
 
-  // ── Spotify hooks (always mounted; no-ops when token is null) ─────────────
+  // ── Spotify hooks (no-ops when token is null) ─────────────────────────────
   const { isAuthenticated, token, logout } = useSpotifyAuth();
   const {
     playerController, deviceId, currentTrack, isPlaying, position, duration, sdkError,
@@ -181,181 +201,55 @@ export default function App() {
     return () => clearTimeout(t);
   }, [apiError]);
 
-  // ── Loading screen ─────────────────────────────────────────────────────────
+  // ── Early returns (loading / auth) ────────────────────────────────────────
   if (callbackPending) return (
     <div className="loading-screen">
       <div className="spinner" /><p>Connecting to Spotify…</p>
     </div>
   );
 
-  const isLive = audioMode === 'live';
-  const isMic  = audioMode === 'mic';
-
-  const searchTop = isMobile && bannerVisible ? '52px' : '16px';
-
-  // ── Mode toggle (shared between Spotify + YouTube UI) ─────────────────────
-  const ModeToggle = ({ current, onSwitch }: { current: AppMode; onSwitch: (m: AppMode) => void }) => (
-    <div className="mode-tabs">
-      <button
-        className={`mode-tab ${current === 'spotify' ? 'mode-tab--active' : ''}`}
-        onClick={() => onSwitch('spotify')}
-      >
-        Spotify
-      </button>
-      <button
-        className={`mode-tab ${current === 'youtube' ? 'mode-tab--active' : ''}`}
-        onClick={() => onSwitch('youtube')}
-      >
-        YouTube
-      </button>
-    </div>
-  );
-
-  // ── YouTube mode ──────────────────────────────────────────────────────────
-  if (appMode === 'youtube') {
-    const showMicPromptYT = isMobile && !isMic && !capturing;
-
-    return (
-      <div className="app">
-        <VisualizerCanvas
-          ref={canvasRef}
-          features={null}
-          analysis={null}
-          previewUrl={null}
-          positionRef={positionRef}
-          positionTimestampRef={positionTimestampRef}
-          isPlayingRef={isPlayingRef}
-        />
-
-        {/* Desktop: share tab audio modal */}
-        {!isMobile && !isLive && (
-          <div className="modal-overlay">
-            <div className="modal">
-              <div className="modal-icon">◎</div>
-              <h2 className="modal-title">Enable Audio Visualization</h2>
-              <p className="modal-desc">
-                Paste a YouTube link below, then share this tab's audio to sync the visualizer.
-              </p>
-              <ol className="modal-steps">
-                <li>Paste a YouTube link in the bar above</li>
-                <li>Click <strong>Share Tab Audio</strong> below</li>
-                <li>In the browser dialog, select <strong>this tab</strong></li>
-                <li>Ensure <strong>Share tab audio</strong> is checked</li>
-                <li>Click <strong>Share</strong></li>
-              </ol>
-              {audioError && <p className="modal-error">⚠ {audioError}</p>}
-              <button
-                className={`modal-btn ${capturing ? 'modal-btn--loading' : ''}`}
-                onClick={handleEnableAudio}
-                disabled={capturing}
-              >
-                {capturing
-                  ? <><span className="btn-spinner" /> Waiting for permission…</>
-                  : <><span className="btn-icon">◎</span> Share Tab Audio</>
-                }
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Live / mic badge */}
-        {(isLive || isMic) && (
-          <div className="audio-live-badge">
-            <span className="live-dot" /> {isLive ? 'LIVE' : 'MIC'}
-          </div>
-        )}
-
-        {/* Mobile mic prompt */}
-        {showMicPromptYT && (
-          <button className="mobile-mic-btn" onClick={handleMicCapture} disabled={capturing}>
-            {capturing ? <><span className="btn-spinner" /> Waiting…</> : <>🎤 Use microphone</>}
-          </button>
-        )}
-        {isMobile && audioError && (
-          <div className="mobile-audio-error">⚠ {audioError}</div>
-        )}
-
-        {/* URL bar + mode toggle */}
-        <div className="search-overlay" style={{ top: searchTop }}>
-          <ModeToggle current="youtube" onSwitch={(m) => {
-            switchMode(m);
-            if (m === 'spotify' && !isAuthenticated) {
-              // will fall through to SpotifyLogin after mode switch
-            }
-          }} />
-          <YouTubeURLBar onLoad={handleYouTubeLoad} loading={ytLoading} error={ytError} />
-        </div>
-
-        {/* YouTube embed — small player in corner for tab audio capture */}
-        <div
-          ref={ytSetContainer as React.RefCallback<HTMLDivElement>}
-          className="yt-embed"
-        />
-
-        {/* Track info + controls */}
-        <div className="overlay">
-          <TrackInfo
-            name={ytTrack?.title}
-            artist={ytTrack?.author}
-            imageUrl={ytTrack?.thumbnail}
-            emptyLabel="Paste a YouTube link to begin"
-          />
-          <YouTubeControls
-            isPlaying={ytIsPlaying}
-            onTogglePlay={ytTogglePlay}
-          />
-        </div>
-
-        {/* Attribution */}
-        <div className="attribution">
-          built by <a href="https://amerdin.com" target="_blank" rel="noopener noreferrer">amer</a>
-        </div>
-
-        {/* Toasts */}
-        <div className="toast-stack">
-          {!isMobile && !isLive && ytTrack && (
-            <div className="toast toast--info">Share tab audio to sync the visualizer</div>
-          )}
-        </div>
-      </div>
+  // YouTube mode bypasses Spotify auth entirely
+  if (appMode !== 'youtube') {
+    if (isAuthenticated === null) return <div className="loading-screen"><div className="spinner" /></div>;
+    if (!isAuthenticated) return (
+      <SpotifyLogin error={callbackError} onYouTube={() => switchMode('youtube')} />
     );
   }
 
-  // ── Spotify mode auth checks ───────────────────────────────────────────────
-  if (isAuthenticated === null) return <div className="loading-screen"><div className="spinner" /></div>;
-  if (!isAuthenticated) return (
-    <SpotifyLogin
-      error={callbackError}
-      onYouTube={() => switchMode('youtube')}
-    />
-  );
+  // ── Derived values ─────────────────────────────────────────────────────────
+  const isYT   = appMode === 'youtube';
+  const isLive = audioMode === 'live';
+  const isMic  = audioMode === 'mic';
 
-  // ── Spotify mode ──────────────────────────────────────────────────────────
-  const displayTrack = (isMobile ? mobileTrack : null) ?? currentTrack;
+  const displayTrack = !isYT ? ((isMobile ? mobileTrack : null) ?? currentTrack) : null;
   const albumArt     = displayTrack?.album.images[0]?.url;
   const artists      = displayTrack?.artists.map(a => a.name).join(', ');
 
-  const showMicPrompt = isMobile && !previewUrl && !isMic && !capturing;
+  const showMicPrompt = isMobile && !isMic && !capturing && (isYT || !previewUrl);
 
+  const searchTop = isMobile && bannerVisible ? '52px' : '16px';
+
+  // ── Single return — same tree shape in both modes so VisualizerCanvas
+  //    never unmounts and the live audio capture survives mode switches ───────
   return (
     <div className="app">
       <VisualizerCanvas
         ref={canvasRef}
-        features={features}
-        analysis={analysis}
-        previewUrl={(isLive || isMic) ? null : previewUrl}
+        features={isYT ? null : features}
+        analysis={isYT ? null : analysis}
+        previewUrl={isYT ? null : (isLive || isMic) ? null : previewUrl}
         positionRef={positionRef}
         positionTimestampRef={positionTimestampRef}
         isPlayingRef={isPlayingRef}
       />
 
-      {/* Mobile banner */}
-      {isMobile && (
+      {/* MobileBanner — Spotify only */}
+      {!isYT && isMobile && (
         <MobileBanner onDismiss={() => setBannerVisible(false)} />
       )}
 
-      {/* Desktop share modal */}
-      {!isMobile && !isLive && (
+      {/* Desktop full-screen modal — Spotify only (YouTube uses inline button) */}
+      {!isYT && !isMobile && !isLive && (
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-icon">◎</div>
@@ -393,7 +287,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Mobile mic fallback */}
+      {/* Mobile mic prompt */}
       {showMicPrompt && (
         <button className="mobile-mic-btn" onClick={handleMicCapture} disabled={capturing}>
           {capturing ? <><span className="btn-spinner" /> Waiting…</> : <>🎤 Use microphone</>}
@@ -403,27 +297,62 @@ export default function App() {
         <div className="mobile-audio-error">⚠ {audioError}</div>
       )}
 
-      {/* Search + mode toggle */}
+      {/* Search / URL bar + mode toggle */}
       <div className="search-overlay" style={{ top: searchTop }}>
-        <ModeToggle current="spotify" onSwitch={switchMode} />
-        <SearchBar onSelect={handleTrackSelect} disabled={isMobile ? false : !deviceId} />
+        <ModeToggle current={appMode} onSwitch={switchMode} />
+
+        {isYT
+          ? <YouTubeURLBar onLoad={handleYouTubeLoad} loading={ytLoading} error={ytError} />
+          : <SearchBar onSelect={handleTrackSelect} disabled={isMobile ? false : !deviceId} />
+        }
+
+        {/* YouTube: inline share button below URL bar (never blocks the UI) */}
+        {isYT && !isMobile && !isLive && (
+          <button
+            className={`yt-share-btn ${capturing ? 'yt-share-btn--loading' : ''}`}
+            onClick={handleEnableAudio}
+            disabled={capturing}
+          >
+            {capturing
+              ? <><span className="btn-spinner" /> Waiting for permission…</>
+              : <><span className="btn-icon">◎</span> Share Tab Audio</>
+            }
+            {audioError && <span className="yt-share-error"> — {audioError}</span>}
+          </button>
+        )}
       </div>
+
+      {/* YouTube embed — small corner player; only mounted in YouTube mode */}
+      {isYT && (
+        <div ref={ytSetContainer as (el: HTMLDivElement | null) => void} className="yt-embed" />
+      )}
 
       {/* Track info + controls */}
       <div className="overlay">
-        <TrackInfo
-          name={displayTrack?.name}
-          artist={artists}
-          imageUrl={albumArt}
-          emptyLabel="Play something on Spotify to begin"
-        />
-        <PlayerControls
-          player={playerController}
-          isPlaying={isPlaying}
-          position={position}
-          duration={duration}
-          onLogout={logout}
-        />
+        {isYT
+          ? <TrackInfo
+              name={ytTrack?.title}
+              artist={ytTrack?.author}
+              imageUrl={ytTrack?.thumbnail}
+              emptyLabel="Paste a YouTube link to begin"
+            />
+          : <TrackInfo
+              name={displayTrack?.name}
+              artist={artists}
+              imageUrl={albumArt}
+              emptyLabel="Play something on Spotify to begin"
+            />
+        }
+        {isYT
+          ? <YouTubeControls isPlaying={ytIsPlaying} onTogglePlay={ytTogglePlay} />
+          : <PlayerControls
+              player={playerController}
+              isPlaying={isPlaying}
+              position={position}
+              duration={duration}
+              onLogout={logout}
+            />
+        }
       </div>
 
       {/* Attribution */}
@@ -433,10 +362,10 @@ export default function App() {
 
       {/* Toast stack */}
       <div className="toast-stack">
-        {showSdkError && sdkError  && <div className="toast toast--error">⚠ {sdkError}</div>}
-        {playError                 && <div className="toast toast--error">⚠ {playError}</div>}
-        {showApiError && apiError  && <div className="toast toast--warn">⚠ {apiError}</div>}
-        {!isMobile && !deviceId   && <div className="toast toast--info">Initializing player…</div>}
+        {!isYT && showSdkError && sdkError  && <div className="toast toast--error">⚠ {sdkError}</div>}
+        {!isYT && playError                 && <div className="toast toast--error">⚠ {playError}</div>}
+        {!isYT && showApiError && apiError  && <div className="toast toast--warn">⚠ {apiError}</div>}
+        {!isYT && !isMobile && !deviceId   && <div className="toast toast--info">Initializing player…</div>}
       </div>
     </div>
   );

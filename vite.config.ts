@@ -14,6 +14,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: '127.0.0.1',
     port: 5174,
     proxy: {
       // Route Spotify CDN preview MP3s through the dev server to avoid CORS.
