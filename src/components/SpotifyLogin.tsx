@@ -2,9 +2,10 @@ import { initiateAuth } from '../spotify/auth';
 
 interface Props {
   error?: string | null;
+  onYouTube?: () => void;
 }
 
-export function SpotifyLogin({ error }: Props) {
+export function SpotifyLogin({ error, onYouTube }: Props) {
   return (
     <div className="login-screen">
       <div className="login-card">
@@ -18,6 +19,11 @@ export function SpotifyLogin({ error }: Props) {
           Connect Spotify
         </button>
         <p className="fine-print">Requires Spotify Premium for in-browser playback</p>
+        {onYouTube && (
+          <button className="yt-alt-btn" onClick={onYouTube}>
+            Use YouTube instead
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,27 +1,30 @@
-import type { SpotifyTrack } from '../spotify/types';
-
 interface Props {
-  track: SpotifyTrack | null;
+  name?: string | null;
+  artist?: string | null;
+  imageUrl?: string | null;
+  emptyLabel?: string;
 }
 
-export function TrackInfo({ track }: Props) {
-  if (!track) {
+export function TrackInfo({
+  name,
+  artist,
+  imageUrl,
+  emptyLabel = 'Play something to begin',
+}: Props) {
+  if (!name) {
     return (
       <div className="track-info track-info--empty">
-        <span className="track-idle">Play something on Spotify to begin</span>
+        <span className="track-idle">{emptyLabel}</span>
       </div>
     );
   }
 
-  const albumArt = track.album.images[0]?.url;
-  const artists = track.artists.map((a) => a.name).join(', ');
-
   return (
     <div className="track-info">
-      {albumArt && <img className="album-art" src={albumArt} alt={track.album.name} />}
+      {imageUrl && <img className="album-art" src={imageUrl} alt={name} />}
       <div className="track-text">
-        <p className="track-name">{track.name}</p>
-        <p className="track-artist">{artists}</p>
+        <p className="track-name">{name}</p>
+        {artist && <p className="track-artist">{artist}</p>}
       </div>
     </div>
   );
