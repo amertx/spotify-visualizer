@@ -41,7 +41,6 @@ export class LiveAnalyzer {
   private bufferSource: AudioBufferSourceNode | null = null;
   private streamSource: MediaStreamAudioSourceNode | null = null;
   private activeStream: MediaStream | null = null;
-  private hiddenVideo:  HTMLVideoElement | null = null; // keeps video track alive so Chrome doesn't end the audio track
   private dataArray:    Uint8Array<ArrayBuffer> | null = null;
   private prevDataArray: Uint8Array | null = null;   // for spectral flux
 
@@ -114,19 +113,6 @@ export class LiveAnalyzer {
     await this.ctx.resume();
     const stream = await streamPromise;
 
-    // Do NOT stop video tracks — Chrome terminates the audio track ~10 s after
-    // the video track ends (it considers the capture session over).
-    // Instead, drain the video silently in an off-DOM muted <video> element so
-    // the stream session stays alive as long as we need the audio.
-    const videoTracks = stream.getVideoTracks();
-    if (videoTracks.length > 0) {
-      const v = document.createElement('video');
-      v.muted = true;
-      v.srcObject = new MediaStream(videoTracks);
-      v.play().catch(() => {});
-      this.hiddenVideo = v;
-    }
-
     if (stream.getAudioTracks().length === 0) {
       stream.getTracks().forEach(t => t.stop());
       throw new Error(
@@ -134,7 +120,10 @@ export class LiveAnalyzer {
       );
     }
 
-    this.connectStream(stream);
+    const audioOnlyStream = new MediaStream(stream.getAudioTracks());
+    stream.getVideoTracks().forEach(t => t.stop());
+
+    this.connectStream(audioOnlyStream);
     this._mode = 'live';
     return 'live';
   }
@@ -389,11 +378,6 @@ export class LiveAnalyzer {
   }
 
   private disposeSource() {
-    // Release the hidden video first, then stop all tracks
-    if (this.hiddenVideo) {
-      this.hiddenVideo.srcObject = null;
-      this.hiddenVideo = null;
-    }
     this.activeStream?.getTracks().forEach(t => t.stop());
     this.activeStream = null;
     this.streamSource?.disconnect();
